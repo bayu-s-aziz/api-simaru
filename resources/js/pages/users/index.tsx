@@ -3,16 +3,16 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 import { useState, useEffect, FormEventHandler } from 'react';
 import {
     Dialog,
@@ -21,6 +21,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import InputError from '@/components/input-error';
-// import { route } from 'ziggy-js'; // <-- HAPUS BARIS INI
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -49,35 +49,81 @@ interface User {
     role: 'admin' | 'user';
 }
 
-export default function UserIndex({ users }: { users: { current_page: number, data: User[] } }) {
+// Definisikan tipe Props untuk komponen
+interface UserIndexProps {
+    users: {
+        current_page: number;
+        data: User[];
+    };
+}
+
+export default function UserIndex({ users }: UserIndexProps) {
 
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [deletingUser, setDeletingUser] = useState<User | null>(null); // State untuk konfirmasi hapus
 
-    const { data, setData, patch, processing, errors, reset } = useForm({
+    // Form untuk Edit User
+    const { data: editData, setData: setEditData, patch, processing: processingEdit, errors: errorsEdit, reset: resetEdit } = useForm({
         name: '',
         email: '',
         role: 'user' as 'admin' | 'user',
     });
 
+    // Form untuk Add User
+    const { data: addData, setData: setAddData, post, processing: processingAdd, errors: errorsAdd, reset: resetAdd } = useForm({
+        name: '',
+        email: '',
+        role: 'user' as 'admin' | 'user',
+        password: '',
+        password_confirmation: '',
+    });
+
+    // Hook useForm untuk delete
+    const { delete: deleteUser, processing: processingDelete } = useForm();
+
     useEffect(() => {
         if (editingUser) {
-            setData({
+            setEditData({
                 name: editingUser.name,
                 email: editingUser.email,
                 role: editingUser.role,
             });
         } else {
-            reset();
+            resetEdit();
         }
     }, [editingUser]);
 
-    const submit: FormEventHandler = (e) => {
+    // Handler submit untuk form edit
+    const handleEditSubmit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!editingUser) return;
 
-        // Kirim request PATCH menggunakan string URL manual
-        patch(`/users/${editingUser.id}`, { // <-- UBAH DI SINI
+        patch(`/users/${editingUser.id}`, {
             onSuccess: () => setEditingUser(null),
+            preserveScroll: true,
+        });
+    };
+
+    // Handler submit untuk form tambah
+    const handleAddSubmit: FormEventHandler = (e) => {
+        e.preventDefault();
+
+        post('/users', {
+            onSuccess: () => {
+                setIsAddModalOpen(false);
+                resetAdd();
+            },
+            preserveScroll: true,
+        });
+    };
+
+    // Handler untuk konfirmasi hapus
+    const handleDeleteConfirm = () => {
+        if (!deletingUser) return;
+
+        deleteUser(`/users/${deletingUser.id}`, {
+            onSuccess: () => setDeletingUser(null), // Tutup modal setelah sukses
             preserveScroll: true,
         });
     };
@@ -86,6 +132,15 @@ export default function UserIndex({ users }: { users: { current_page: number, da
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="User Management" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+
+                {/* Tombol Add New */}
+                <div className="flex justify-end mb-4">
+                    <Button onClick={() => setIsAddModalOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New
+                    </Button>
+                </div>
+
                 <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
                     <Table>
                         <TableHeader>
@@ -119,27 +174,32 @@ export default function UserIndex({ users }: { users: { current_page: number, da
                                                     Edit
                                                 </Button>
 
-                                                <Button variant="destructive" size="sm" asChild>
-                                                    <Link
-                                                        // Gunakan string URL manual
-                                                        href={`/users/${user.id}`} // <-- UBAH DI SINI
-                                                        method="delete"
-                                                        as="button"
-                                                        onBefore={() => confirm('Apakah Anda yakin ingin menghapus user ini?')}
-                                                        preserveScroll={true}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                        Delete
-                                                    </Link>
+                                                {/* --- PERUBAHAN DI SINI --- */}
+                                                {/* Tombol Delete sekarang membuka modal konfirmasi */}
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() => setDeletingUser(user)} // Buka modal konfirmasi
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete
                                                 </Button>
+
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                 </>
                             ) : (
-                                <TableCaption>Tidak ada data pengguna.</TableCaption>
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center">
+                                        Tidak ada data pengguna.
+                                    </TableCell>
+                                </TableRow>
                             )}
                         </TableBody>
+                         {users.data.length === 0 && (
+                            <TableCaption>Tidak ada data pengguna.</TableCaption>
+                         )}
                     </Table>
                 </div>
             </div>
@@ -153,34 +213,34 @@ export default function UserIndex({ users }: { users: { current_page: number, da
                             Ubah data user di bawah ini. Klik "Save Changes" untuk menyimpan.
                         </DialogDescription>
                     </DialogHeader>
-
-                    <form onSubmit={submit} className="space-y-4 pt-4">
+                    {/* ... form edit user ... */}
+                    <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
                         <div>
-                            <Label htmlFor="name">Name</Label>
+                            <Label htmlFor="edit-name">Name</Label>
                             <Input
-                                id="name"
-                                value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                id="edit-name"
+                                value={editData.name}
+                                onChange={(e) => setEditData('name', e.target.value)}
                                 className="mt-1"
                                 required
                             />
-                            <InputError message={errors.name} className="mt-2" />
+                            <InputError message={errorsEdit.name} className="mt-2" />
                         </div>
                         <div>
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="edit-email">Email</Label>
                             <Input
-                                id="email"
+                                id="edit-email"
                                 type="email"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
+                                value={editData.email}
+                                onChange={(e) => setEditData('email', e.target.value)}
                                 className="mt-1"
                                 required
                             />
-                            <InputError message={errors.email} className="mt-2" />
+                            <InputError message={errorsEdit.email} className="mt-2" />
                         </div>
                         <div>
-                            <Label htmlFor="role">Role</Label>
-                            <Select value={data.role} onValueChange={(value) => setData('role', value as 'admin' | 'user')}>
+                            <Label htmlFor="edit-role">Role</Label>
+                            <Select value={editData.role} onValueChange={(value) => setEditData('role', value as 'admin' | 'user')}>
                                 <SelectTrigger className="w-full mt-1">
                                     <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
@@ -189,7 +249,7 @@ export default function UserIndex({ users }: { users: { current_page: number, da
                                     <SelectItem value="user">User</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <InputError message={errors.role} className="mt-2" />
+                            <InputError message={errorsEdit.role} className="mt-2" />
                         </div>
 
                         <DialogFooter>
@@ -200,13 +260,135 @@ export default function UserIndex({ users }: { users: { current_page: number, da
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Saving...' : 'Save Changes'}
+                            <Button type="submit" disabled={processingEdit}>
+                                {processingEdit ? 'Saving...' : 'Save Changes'}
                             </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
+
+             {/* MODAL (DIALOG) UNTUK ADD USER */}
+             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Add New User</DialogTitle>
+                        <DialogDescription>
+                            Masukkan detail pengguna baru di bawah ini.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {/* ... form add user ... */}
+                    <form onSubmit={handleAddSubmit} className="space-y-4 pt-4">
+                        <div>
+                            <Label htmlFor="add-name">Name</Label>
+                            <Input
+                                id="add-name"
+                                value={addData.name}
+                                onChange={(e) => setAddData('name', e.target.value)}
+                                className="mt-1"
+                                required
+                            />
+                            <InputError message={errorsAdd.name} className="mt-2" />
+                        </div>
+                        <div>
+                            <Label htmlFor="add-email">Email</Label>
+                            <Input
+                                id="add-email"
+                                type="email"
+                                value={addData.email}
+                                onChange={(e) => setAddData('email', e.target.value)}
+                                className="mt-1"
+                                required
+                            />
+                            <InputError message={errorsAdd.email} className="mt-2" />
+                        </div>
+                        <div>
+                            <Label htmlFor="add-role">Role</Label>
+                            <Select value={addData.role} onValueChange={(value) => setAddData('role', value as 'admin' | 'user')}>
+                                <SelectTrigger className="w-full mt-1">
+                                    <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="admin">Admin</SelectItem>
+                                    <SelectItem value="user">User</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError message={errorsAdd.role} className="mt-2" />
+                        </div>
+                         <div>
+                            <Label htmlFor="add-password">Password</Label>
+                            <Input
+                                id="add-password"
+                                type="password"
+                                value={addData.password}
+                                onChange={(e) => setAddData('password', e.target.value)}
+                                className="mt-1"
+                                required
+                                autoComplete="new-password"
+                            />
+                            <InputError message={errorsAdd.password} className="mt-2" />
+                        </div>
+                        <div>
+                            <Label htmlFor="add-password_confirmation">Confirm Password</Label>
+                            <Input
+                                id="add-password_confirmation"
+                                type="password"
+                                value={addData.password_confirmation}
+                                onChange={(e) => setAddData('password_confirmation', e.target.value)}
+                                className="mt-1"
+                                required
+                                autoComplete="new-password"
+                            />
+                            <InputError message={errorsAdd.password_confirmation} className="mt-2" />
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => { setIsAddModalOpen(false); resetAdd(); }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={processingAdd}>
+                                {processingAdd ? 'Adding...' : 'Add User'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- DIALOG KONFIRMASI DELETE --- */}
+            <Dialog open={!!deletingUser} onOpenChange={(isOpen) => !isOpen && setDeletingUser(null)}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Confirm Deletion</DialogTitle>
+                        <DialogDescription>
+                            Apakah Anda yakin ingin menghapus user: <strong>{deletingUser?.name}</strong>?
+                            Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDeletingUser(null)}
+                            disabled={processingDelete}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            disabled={processingDelete}
+                        >
+                            {processingDelete ? 'Deleting...' : 'Confirm Delete'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </AppLayout>
     );
 }

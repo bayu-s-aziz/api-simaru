@@ -4,10 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use app\Models\User;
+use App\Models\User; // <-- Perbaikan namespace (sebelumnya 'app')
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Hash; // <-- Tambahkan impor Hash
+use Illuminate\Validation\Rules\Password; // <-- Tambahkan impor Password
 
 class UserController extends Controller
 {
@@ -34,7 +35,7 @@ class UserController extends Controller
      */
     public function create()
     {
-        //
+        // Tidak digunakan, modal menangani ini
     }
 
     /**
@@ -42,7 +43,31 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        // 1. Validasi input dari form modal "Add New"
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users'), // Pastikan email unik
+            ],
+            'role' => ['required', 'string', Rule::in(['admin', 'user'])],
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
+        ]);
+
+        // 2. Buat user baru di database
+        User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'password' => Hash::make($validated['password']), // Enkripsi password
+        ]);
+
+        // 3. Redirect kembali ke halaman index
+        // Inertia akan secara otomatis me-refresh data 'users'
+        return redirect()->route('users.index')->with('success', 'User created successfully.');
     }
 
     /**
@@ -58,7 +83,7 @@ class UserController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        // Tidak digunakan, modal menangani ini
     }
 
     /**
