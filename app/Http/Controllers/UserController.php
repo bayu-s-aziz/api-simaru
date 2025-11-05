@@ -53,7 +53,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users'), // Pastikan email unik
             ],
-            'role' => ['required', 'string', Rule::in(['admin', 'user'])],
+            'role' => ['required', 'string', Rule::in(['admin', 'user', 'manager'])], // Pastikan role-nya valid
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
         ]);
 
@@ -101,7 +101,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($user->id), // Pastikan email unik, kecuali untuk user ini sendiri
             ],
-            'role' => ['required', 'string', Rule::in(['admin', 'user'])], // Pastikan role-nya valid
+            'role' => ['required', 'string', Rule::in(['admin', 'user', 'manager'])], // Pastikan role-nya valid
         ]);
 
         // 2. Update data user

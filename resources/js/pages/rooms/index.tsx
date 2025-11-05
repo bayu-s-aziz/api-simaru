@@ -21,7 +21,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,73 +33,85 @@ import {
 } from "@/components/ui/select";
 import InputError from '@/components/input-error';
 
+// Breadcrumbs untuk Room Management
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'User Management',
-        href: dashboard().url,
+        title: 'Room Management',
+        href: dashboard().url, // Asumsi route, bisa diganti ke route index rooms
     },
 ];
 
-// Definisikan tipe data User
-interface User {
+// Definisikan tipe data Room
+interface Room {
     id: number;
     name: string;
-    email: string;
-    role: 'admin' | 'user' | 'manager'; // <-- PERUBAHAN
+    faculty_name: string;
+    photo: string | null; // Sesuai migrasi, photo bisa null
+    capacity: number;
+    status: 'draft' | 'approved' | 'rejected';
 }
 
 // Definisikan tipe Props untuk komponen
-interface UserIndexProps {
-    users: {
+interface RoomIndexProps {
+    rooms: {
         current_page: number;
-        data: User[];
+        data: Room[];
+        // Tambahkan properti paginasi lain jika perlu (total, per_page, etc.)
     };
 }
 
-export default function UserIndex({ users }: UserIndexProps) {
+export default function RoomIndex({ rooms }: RoomIndexProps) {
 
-    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [editingRoom, setEditingRoom] = useState<Room | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [deletingUser, setDeletingUser] = useState<User | null>(null); // State untuk konfirmasi hapus
+    const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
 
-    // Form untuk Edit User
+    // Tipe untuk status
+    type RoomStatus = 'draft' | 'approved' | 'rejected';
+
+    // Form untuk Edit Room
     const { data: editData, setData: setEditData, patch, processing: processingEdit, errors: errorsEdit, reset: resetEdit } = useForm({
         name: '',
-        email: '',
-        role: 'user' as 'admin' | 'user' | 'manager', // <-- PERUBAHAN
+        faculty_name: '',
+        photo: '',
+        capacity: 0,
+        status: 'draft' as RoomStatus,
     });
 
-    // Form untuk Add User
+    // Form untuk Add Room
     const { data: addData, setData: setAddData, post, processing: processingAdd, errors: errorsAdd, reset: resetAdd } = useForm({
         name: '',
-        email: '',
-        role: 'user' as 'admin' | 'user' | 'manager', // <-- PERUBAHAN
-        password: '',
-        password_confirmation: '',
+        faculty_name: '',
+        photo: '',
+        capacity: 0,
+        status: 'draft' as RoomStatus,
     });
 
     // Hook useForm untuk delete
-    const { delete: deleteUser, processing: processingDelete } = useForm();
+    const { delete: deleteRoom, processing: processingDelete } = useForm();
 
+    // Populate form edit saat editingRoom berubah
     useEffect(() => {
-        if (editingUser) {
+        if (editingRoom) {
             setEditData({
-                name: editingUser.name,
-                email: editingUser.email,
-                role: editingUser.role,
+                name: editingRoom.name,
+                faculty_name: editingRoom.faculty_name,
+                photo: editingRoom.photo || '', // Handle null photo
+                capacity: editingRoom.capacity,
+                status: editingRoom.status,
             });
         } else {
             resetEdit();
         }
-    }, [editingUser]);
+    }, [editingRoom]);
 
     // Handler submit untuk form edit
     const handleEditSubmit: FormEventHandler = (e) => {
         e.preventDefault();
-        if (!editingUser) return;
+        if (!editingRoom) return;
 
-        patch(`/users/${editingUser.id}`, {
-            onSuccess: () => setEditingUser(null),
+        patch(`/rooms/${editingRoom.id}`, {
+            onSuccess: () => setEditingRoom(null), // Tutup modal
             preserveScroll: true,
         });
     };
@@ -109,7 +120,7 @@ export default function UserIndex({ users }: UserIndexProps) {
     const handleAddSubmit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post('/users', {
+        post('/rooms', {
             onSuccess: () => {
                 setIsAddModalOpen(false);
                 resetAdd();
@@ -120,17 +131,17 @@ export default function UserIndex({ users }: UserIndexProps) {
 
     // Handler untuk konfirmasi hapus
     const handleDeleteConfirm = () => {
-        if (!deletingUser) return;
+        if (!deletingRoom) return;
 
-        deleteUser(`/users/${deletingUser.id}`, {
-            onSuccess: () => setDeletingUser(null), // Tutup modal setelah sukses
+        deleteRoom(`/rooms/${deletingRoom.id}`, {
+            onSuccess: () => setDeletingRoom(null), // Tutup modal setelah sukses
             preserveScroll: true,
         });
     };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="User Management" />
+            <Head title="Room Management" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
 
                 {/* Tombol Add New */}
@@ -141,79 +152,92 @@ export default function UserIndex({ users }: UserIndexProps) {
                     </Button>
                 </div>
 
+                {/* Tabel Data Ruangan */}
                 <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-[50px]">No</TableHead>
                                 <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Role</TableHead>
+                                <TableHead>Faculty Name</TableHead>
+                                <TableHead>Capacity</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Photo</TableHead>
                                 <TableHead className='text-center'>Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.data.length > 0 ? (
+                            {rooms.data.length > 0 ? (
                                 <>
-                                    {users.data.map((user, index) => (
-                                        <TableRow key={user.id}>
+                                    {rooms.data.map((room, index) => (
+                                        <TableRow key={room.id}>
                                             <TableCell className="font-medium">
-                                                {(users.current_page - 1) * 10 + index + 1}
+                                                {/* Asumsi 10 item per halaman, sesuaikan jika perlu */}
+                                                {(rooms.current_page - 1) * 10 + index + 1}
                                             </TableCell>
-                                            <TableCell>{user.name}</TableCell>
-                                            <TableCell>{user.email}</TableCell>
-                                            <TableCell className='capitalize'>{user.role}</TableCell>
+                                            <TableCell>{room.name}</TableCell>
+                                            <TableCell>{room.faculty_name}</TableCell>
+                                            <TableCell>{room.capacity}</TableCell>
+                                            <TableCell className='capitalize'>{room.status}</TableCell>
+                                            <TableCell>
+                                                {room.photo ? (
+                                                    <a href={room.photo} target="_blank" rel="noopener noreferrer">
+                                                        <img
+                                                            src={room.photo}
+                                                            alt={room.name}
+                                                            className="h-10 w-16 rounded-md object-cover transition-transform hover:scale-110"
+                                                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/64x40/gray/white?text=Error')}
+                                                        />
+                                                    </a>
+                                                ) : (
+                                                    <span className='text-xs text-gray-500'>No Photo</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell className='flex justify-center space-x-2'>
-
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={() => setEditingUser(user)}
+                                                    onClick={() => setEditingRoom(room)}
                                                 >
                                                     <Pencil className="h-4 w-4 mr-2" />
                                                     Edit
                                                 </Button>
-
-                                                {/* --- PERUBAHAN DI SINI --- */}
-                                                {/* Tombol Delete sekarang membuka modal konfirmasi */}
                                                 <Button
                                                     variant="destructive"
                                                     size="sm"
-                                                    onClick={() => setDeletingUser(user)} // Buka modal konfirmasi
+                                                    onClick={() => setDeletingRoom(room)}
                                                 >
                                                     <Trash2 className="h-4 w-4 mr-2" />
                                                     Delete
                                                 </Button>
-
                                             </TableCell>
                                         </TableRow>
                                     ))}
                                 </>
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center">
-                                        Tidak ada data pengguna.
+                                    <TableCell colSpan={7} className="text-center">
+                                        Tidak ada data ruangan.
                                     </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
-                         {users.data.length === 0 && (
-                            <TableCaption>Tidak ada data pengguna.</TableCaption>
+                         {rooms.data.length === 0 && (
+                            <TableCaption>Tidak ada data ruangan.</TableCaption>
                          )}
                     </Table>
                 </div>
             </div>
 
-            {/* MODAL (DIALOG) UNTUK EDIT USER */}
-            <Dialog open={!!editingUser} onOpenChange={(isOpen) => !isOpen && setEditingUser(null)}>
+            {/* MODAL (DIALOG) UNTUK EDIT ROOM */}
+            <Dialog open={!!editingRoom} onOpenChange={(isOpen) => !isOpen && setEditingRoom(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Edit User</DialogTitle>
+                        <DialogTitle>Edit Room</DialogTitle>
                         <DialogDescription>
-                            Ubah data user di bawah ini. Klik "Save Changes" untuk menyimpan.
+                            Ubah data ruangan di bawah ini. Klik "Save Changes" untuk menyimpan.
                         </DialogDescription>
                     </DialogHeader>
-                    {/* ... form edit user ... */}
                     <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
                         <div>
                             <Label htmlFor="edit-name">Name</Label>
@@ -227,39 +251,60 @@ export default function UserIndex({ users }: UserIndexProps) {
                             <InputError message={errorsEdit.name} className="mt-2" />
                         </div>
                         <div>
-                            <Label htmlFor="edit-email">Email</Label>
+                            <Label htmlFor="edit-faculty_name">Faculty Name</Label>
                             <Input
-                                id="edit-email"
-                                type="email"
-                                value={editData.email}
-                                onChange={(e) => setEditData('email', e.target.value)}
+                                id="edit-faculty_name"
+                                value={editData.faculty_name}
+                                onChange={(e) => setEditData('faculty_name', e.target.value)}
                                 className="mt-1"
                                 required
                             />
-                            <InputError message={errorsEdit.email} className="mt-2" />
+                            <InputError message={errorsEdit.faculty_name} className="mt-2" />
+                        </div>
+                         <div>
+                            <Label htmlFor="edit-photo">Photo URL</Label>
+                            <Input
+                                id="edit-photo"
+                                value={editData.photo}
+                                onChange={(e) => setEditData('photo', e.target.value)}
+                                className="mt-1"
+                                placeholder="https://example.com/image.png"
+                            />
+                            <InputError message={errorsEdit.photo} className="mt-2" />
+                        </div>
+                         <div>
+                            <Label htmlFor="edit-capacity">Capacity</Label>
+                            <Input
+                                id="edit-capacity"
+                                type="number"
+                                value={editData.capacity}
+                                // Konversi ke integer saat change
+                                onChange={(e) => setEditData('capacity', parseInt(e.target.value) || 0)}
+                                className="mt-1"
+                                required
+                            />
+                            <InputError message={errorsEdit.capacity} className="mt-2" />
                         </div>
                         <div>
-                            <Label htmlFor="edit-role">Role</Label>
-                            {/* <-- PERUBAHAN (Type assertion) --> */}
-                            <Select value={editData.role} onValueChange={(value) => setEditData('role', value as 'admin' | 'user' | 'manager')}>
+                            <Label htmlFor="edit-status">Status</Label>
+                            <Select value={editData.status} onValueChange={(value) => setEditData('status', value as RoomStatus)}>
                                 <SelectTrigger className="w-full mt-1">
-                                    <SelectValue placeholder="Select a role" />
+                                    <SelectValue placeholder="Select a status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {/* <-- PERUBAHAN (Tambahkan Manager) --> */}
-                                    <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="user">User</SelectItem>
-                                    <SelectItem value="manager">Manager</SelectItem>
+                                    <SelectItem value="draft">Draft</SelectItem>
+                                    <SelectItem value="approved">Approved</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <InputError message={errorsEdit.role} className="mt-2" />
+                            <InputError message={errorsEdit.status} className="mt-2" />
                         </div>
 
                         <DialogFooter>
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => setEditingUser(null)}
+                                onClick={() => setEditingRoom(null)}
                             >
                                 Cancel
                             </Button>
@@ -271,16 +316,15 @@ export default function UserIndex({ users }: UserIndexProps) {
                 </DialogContent>
             </Dialog>
 
-             {/* MODAL (DIALOG) UNTUK ADD USER */}
+             {/* MODAL (DIALOG) UNTUK ADD ROOM */}
              <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>Add New User</DialogTitle>
+                        <DialogTitle>Add New Room</DialogTitle>
                         <DialogDescription>
-                            Masukkan detail pengguna baru di bawah ini.
+                            Masukkan detail ruangan baru di bawah ini.
                         </DialogDescription>
                     </DialogHeader>
-                    {/* ... form add user ... */}
                     <form onSubmit={handleAddSubmit} className="space-y-4 pt-4">
                         <div>
                             <Label htmlFor="add-name">Name</Label>
@@ -293,59 +337,54 @@ export default function UserIndex({ users }: UserIndexProps) {
                             />
                             <InputError message={errorsAdd.name} className="mt-2" />
                         </div>
-                        <div>
-                            <Label htmlFor="add-email">Email</Label>
+                         <div>
+                            <Label htmlFor="add-faculty_name">Faculty Name</Label>
                             <Input
-                                id="add-email"
-                                type="email"
-                                value={addData.email}
-                                onChange={(e) => setAddData('email', e.target.value)}
+                                id="add-faculty_name"
+                                value={addData.faculty_name}
+                                onChange={(e) => setAddData('faculty_name', e.target.value)}
                                 className="mt-1"
                                 required
                             />
-                            <InputError message={errorsAdd.email} className="mt-2" />
-                        </div>
-                        <div>
-                            <Label htmlFor="add-role">Role</Label>
-                            {/* <-- PERUBAHAN (Type assertion) --> */}
-                            <Select value={addData.role} onValueChange={(value) => setAddData('role', value as 'admin' | 'user' | 'manager')}>
-                                <SelectTrigger className="w-full mt-1">
-                                    <SelectValue placeholder="Select a role" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {/* <-- PERUBAHAN (Tambahkan Manager) --> */}
-                                    <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="user">User</SelectItem>
-                                    <SelectItem value="manager">Manager</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <InputError message={errorsAdd.role} className="mt-2" />
+                            <InputError message={errorsAdd.faculty_name} className="mt-2" />
                         </div>
                          <div>
-                            <Label htmlFor="add-password">Password</Label>
+                            <Label htmlFor="add-photo">Photo URL</Label>
                             <Input
-                                id="add-password"
-                                type="password"
-                                value={addData.password}
-                                onChange={(e) => setAddData('password', e.target.value)}
+                                id="add-photo"
+                                value={addData.photo}
+                                onChange={(e) => setAddData('photo', e.target.value)}
+                                className="mt-1"
+                                placeholder="https://example.com/image.png"
+                            />
+                            <InputError message={errorsAdd.photo} className="mt-2" />
+                        </div>
+                         <div>
+                            <Label htmlFor="add-capacity">Capacity</Label>
+                            <Input
+                                id="add-capacity"
+                                type="number"
+                                value={addData.capacity}
+                                onChange={(e) => setAddData('capacity', parseInt(e.target.value) || 0)}
                                 className="mt-1"
                                 required
-                                autoComplete="new-password"
                             />
-                            <InputError message={errorsAdd.password} className="mt-2" />
+                            <InputError message={errorsAdd.capacity} className="mt-2" />
                         </div>
                         <div>
-                            <Label htmlFor="add-password_confirmation">Confirm Password</Label>
-                            <Input
-                                id="add-password_confirmation"
-                                type="password"
-                                value={addData.password_confirmation}
-                                onChange={(e) => setAddData('password_confirmation', e.target.value)}
-                                className="mt-1"
-                                required
-                                autoComplete="new-password"
-                            />
-                            <InputError message={errorsAdd.password_confirmation} className="mt-2" />
+                            <Label htmlFor="add-status">Status</Label>
+                            <Select value={addData.status} onValueChange={(value) => setAddData('status', value as RoomStatus)}>
+                                <SelectTrigger className="w-full mt-1">
+                                    <SelectValue placeholder="Select a status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="draft">Draft</SelectItem>
+                                    <SelectItem value="approved">Approved</SelectItem>
+                                    {/* Ini adalah baris yang diperbaiki dari 'SelsctItem' */}
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <InputError message={errorsAdd.status} className="mt-2" />
                         </div>
 
                         <DialogFooter>
@@ -357,29 +396,28 @@ export default function UserIndex({ users }: UserIndexProps) {
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={processingAdd}>
-                                {processingAdd ? 'Adding...' : 'Add User'}
+                                {processingAdd ? 'Adding...' : 'Add Room'}
                             </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
 
-            {/* --- DIALOG KONFIRMASI DELETE --- */}
-            <Dialog open={!!deletingUser} onOpenChange={(isOpen) => !isOpen && setDeletingUser(null)}>
+            {/* DIALOG KONFIRMASI DELETE */}
+            <Dialog open={!!deletingRoom} onOpenChange={(isOpen) => !isOpen && setDeletingRoom(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Confirm Deletion</DialogTitle>
                         <DialogDescription>
-                            Apakah Anda yakin ingin menghapus user: <strong>{deletingUser?.name}</strong>?
+                            Apakah Anda yakin ingin menghapus ruangan: <strong>{deletingRoom?.name}</strong>?
                             Tindakan ini tidak dapat dibatalkan.
                         </DialogDescription>
                     </DialogHeader>
-
                     <DialogFooter>
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setDeletingUser(null)}
+                            onClick={() => setDeletingRoom(null)}
                             disabled={processingDelete}
                         >
                             Cancel

@@ -13,8 +13,10 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { BookOpen, DoorClosedIcon, Folder, LayoutGrid, User2Icon } from 'lucide-react';
 import AppLogo from './app-logo';
+import users from '@/routes/users';
+import Profile from '@/pages/settings/profile';
 
 const mainNavItems: NavItem[] = [
     {
@@ -22,6 +24,16 @@ const mainNavItems: NavItem[] = [
         href: dashboard(),
         icon: LayoutGrid,
     },
+    {
+        title: 'User Management',
+        href:'/users',
+        icon: User2Icon,
+    },
+    {
+        title: 'Room Management',
+        href:'/rooms',
+        icon: DoorClosedIcon,
+    }
 ];
 
 const footerNavItems: NavItem[] = [

@@ -1,19 +1,34 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RoomController;
+use Inertia\Inertia;
 
-Route::get('/', [HomeController::class, 'index'])->name('welcome');
+Route::get('home/{nama}', [HomeController::class, 'index']);
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', function () {
-        return inertia('dashboard');
-    })->name('dashboard');
+Route::get('/', function () {
+    return Inertia::render('welcome');
+})->name('home');
 
-    // <-- TAMBAHKAN BARIS INI UNTUK USER MANAGEMENT -->
-    Route::resource('users', UserController::class);
+Route::get('/hello/{nama}', function(string $nama){
+    return "ini halaman hello " . $nama . request()->lengkap;
 });
 
-require __DIR__ . '/auth.php';
-require __DIR__ . '/settings.php';
+// Route::post('/')
+// Route::put('/')
+// Route::patch('/')
+// Route::delete('/')
+// Route::resource()
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('dashboard', function () {
+        return Inertia::render('dashboard');
+    })->name('dashboard');
+    Route::resource('users', UserController::class);
+    Route::resource('rooms', RoomController::class);
+});
+
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';
