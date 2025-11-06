@@ -32,6 +32,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import InputError from '@/components/input-error';
+import { router } from '@inertiajs/react';
 
 // Breadcrumbs untuk Room Management
 const breadcrumbs: BreadcrumbItem[] = [
@@ -69,20 +70,20 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
     // Tipe untuk status
     type RoomStatus = 'draft' | 'approved' | 'rejected';
 
-    // Form untuk Edit Room
+    // Form untuk Edit Room - ubah tipe photo menjadi File | string | null
     const { data: editData, setData: setEditData, patch, processing: processingEdit, errors: errorsEdit, reset: resetEdit } = useForm({
         name: '',
         faculty_name: '',
-        photo: '',
+        photo: null as File | string | null,
         capacity: 0,
         status: 'draft' as RoomStatus,
     });
 
-    // Form untuk Add Room
+    // Form untuk Add Room - ubah tipe photo menjadi File | null
     const { data: addData, setData: setAddData, post, processing: processingAdd, errors: errorsAdd, reset: resetAdd } = useForm({
         name: '',
         faculty_name: '',
-        photo: '',
+        photo: null as File | null,
         capacity: 0,
         status: 'draft' as RoomStatus,
     });
@@ -105,18 +106,31 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
         }
     }, [editingRoom]);
 
-    // Handler submit untuk form edit
+    // Handler submit untuk form edit - gunakan router dengan manual FormData
     const handleEditSubmit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!editingRoom) return;
 
-        patch(`/rooms/${editingRoom.id}`, {
-            onSuccess: () => setEditingRoom(null), // Tutup modal
+        // Buat FormData manual
+        const formData = new FormData();
+        formData.append('name', editData.name);
+        formData.append('faculty_name', editData.faculty_name);
+        formData.append('capacity', editData.capacity.toString());
+        formData.append('status', editData.status);
+        formData.append('_method', 'PUT'); // Method spoofing
+
+        // Tambahkan photo jika ada dan merupakan File
+        if (editData.photo instanceof File) {
+            formData.append('photo', editData.photo);
+        }
+
+        router.post(`/rooms/${editingRoom.id}`, formData, {
+            onSuccess: () => setEditingRoom(null),
             preserveScroll: true,
         });
     };
 
-    // Handler submit untuk form tambah
+    // Handler submit untuk form tambah - gunakan FormData
     const handleAddSubmit: FormEventHandler = (e) => {
         e.preventDefault();
 
@@ -126,6 +140,7 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                 resetAdd();
             },
             preserveScroll: true,
+            forceFormData: true, // Paksa menggunakan FormData
         });
     };
 
@@ -157,70 +172,56 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[50px]">No</TableHead>
+                                <TableHead>Photo</TableHead>
                                 <TableHead>Name</TableHead>
-                                <TableHead>Faculty Name</TableHead>
+                                <TableHead>Faculty</TableHead>
                                 <TableHead>Capacity</TableHead>
                                 <TableHead>Status</TableHead>
-                                <TableHead>Photo</TableHead>
-                                <TableHead className='text-center'>Action</TableHead>
+                                <TableHead>Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {rooms.data.length > 0 ? (
-                                <>
-                                    {rooms.data.map((room, index) => (
-                                        <TableRow key={room.id}>
-                                            <TableCell className="font-medium">
-                                                {/* Asumsi 10 item per halaman, sesuaikan jika perlu */}
-                                                {(rooms.current_page - 1) * 10 + index + 1}
-                                            </TableCell>
-                                            <TableCell>{room.name}</TableCell>
-                                            <TableCell>{room.faculty_name}</TableCell>
-                                            <TableCell>{room.capacity}</TableCell>
-                                            <TableCell className='capitalize'>{room.status}</TableCell>
-                                            <TableCell>
-                                                {room.photo ? (
-                                                    <a href={room.photo} target="_blank" rel="noopener noreferrer">
-                                                        <img
-                                                            src={room.photo}
-                                                            alt={room.name}
-                                                            className="h-10 w-16 rounded-md object-cover transition-transform hover:scale-110"
-                                                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/64x40/gray/white?text=Error')}
-                                                        />
-                                                    </a>
-                                                ) : (
-                                                    <span className='text-xs text-gray-500'>No Photo</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className='flex justify-center space-x-2'>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setEditingRoom(room)}
-                                                >
-                                                    <Pencil className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={() => setDeletingRoom(room)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </>
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center">
-                                        Tidak ada data ruangan.
+                            {rooms.data.map((room) => (
+                                <TableRow key={room.id}>
+                                    <TableCell>
+                                        {room.photo ? (
+                                            <img
+                                                src={`/storage/${room.photo}`}
+                                                alt={room.name}
+                                                className="h-12 w-12 object-cover rounded"
+                                            />
+                                        ) : (
+                                            <div className="h-12 w-12 bg-gray-200 rounded flex items-center justify-center">
+                                                <span className="text-gray-400 text-xs">No photo</span>
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{room.name}</TableCell>
+                                    <TableCell>{room.faculty_name}</TableCell>
+                                    <TableCell>{room.capacity}</TableCell>
+                                    <TableCell>{room.status}</TableCell>
+                                    <TableCell>
+                                        <div className="flex space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setEditingRoom(room)}
+                                            >
+                                                <Pencil className="h-4 w-4 mr-2" />
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => setDeletingRoom(room)}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
-                            )}
+                            ))}
                         </TableBody>
                          {rooms.data.length === 0 && (
                             <TableCaption>Tidak ada data ruangan.</TableCaption>
@@ -261,18 +262,74 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                             />
                             <InputError message={errorsEdit.faculty_name} className="mt-2" />
                         </div>
-                         <div>
-                            <Label htmlFor="edit-photo">Photo URL</Label>
-                            <Input
-                                id="edit-photo"
-                                value={editData.photo}
-                                onChange={(e) => setEditData('photo', e.target.value)}
-                                className="mt-1"
-                                placeholder="https://example.com/image.png"
-                            />
+
+                        {/* MODAL EDIT ROOM - Update bagian Photo */}
+                        <div>
+                            <Label htmlFor="edit-photo" className="mb-2 block">Photo</Label>
+                            <div className="flex items-start gap-3">
+                                {/* Preview foto existing atau placeholder */}
+                                <div className="flex-shrink-0">
+                                    {editData.photo instanceof File ? (
+                                        <img
+                                            src={URL.createObjectURL(editData.photo)}
+                                            alt="Preview"
+                                            className="h-20 w-20 object-cover rounded border-2 border-gray-200"
+                                        />
+                                    ) : editingRoom?.photo && typeof editData.photo === 'string' ? (
+                                        <img
+                                            src={`/storage/${editingRoom.photo}`}
+                                            alt="Current"
+                                            className="h-20 w-20 object-cover rounded border-2 border-gray-200"
+                                        />
+                                    ) : (
+                                        <div className="h-20 w-20 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                            <span className="text-gray-400 text-xs">No photo</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Info di tengah */}
+                                <div className="flex-1 flex flex-col justify-between">
+                                    <div>
+                                        {editData.photo instanceof File && (
+                                            <p className="text-sm text-green-600 mb-2">
+                                                New file: {editData.photo.name}
+                                            </p>
+                                        )}
+
+                                    </div>
+                                </div>
+
+                                {/* Tombol Choose File di pinggir kanan */}
+                                <div className="flex-shrink-0">
+                                    <Input
+                                        id="edit-photo"
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/jpg,image/gif"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setEditData('photo', file);
+                                            }
+                                        }}
+                                        className="hidden"
+                                    />
+                                    <label
+                                        htmlFor="edit-photo"
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer"
+                                    >
+                                        Choose File
+                                    </label>
+                                </div>
+
+                            </div>
+                            <p className="text-end text-xs text-gray-500">
+                                            Max size: 2MB. Formats: JPEG, PNG, JPG, GIF
+                                        </p>
                             <InputError message={errorsEdit.photo} className="mt-2" />
                         </div>
-                         <div>
+
+                        <div>
                             <Label htmlFor="edit-capacity">Capacity</Label>
                             <Input
                                 id="edit-capacity"
@@ -348,15 +405,63 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                             />
                             <InputError message={errorsAdd.faculty_name} className="mt-2" />
                         </div>
-                         <div>
-                            <Label htmlFor="add-photo">Photo URL</Label>
-                            <Input
-                                id="add-photo"
-                                value={addData.photo}
-                                onChange={(e) => setAddData('photo', e.target.value)}
-                                className="mt-1"
-                                placeholder="https://example.com/image.png"
-                            />
+
+                        {/* MODAL ADD ROOM - Update bagian Photo */}
+                        <div>
+                            <Label htmlFor="add-photo" className="mb-2 block">Photo</Label>
+                            <div className="flex items-start gap-3">
+                                {/* Preview foto baru atau placeholder */}
+                                <div className="flex-shrink-0">
+                                    {addData.photo instanceof File ? (
+                                        <img
+                                            src={URL.createObjectURL(addData.photo)}
+                                            alt="Preview"
+                                            className="h-20 w-20 object-cover rounded border-2 border-gray-200"
+                                        />
+                                    ) : (
+                                        <div className="h-20 w-20 bg-gray-100 rounded border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                            <span className="text-gray-400 text-xs">No photo</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Info di tengah */}
+                                <div className="flex-1 flex flex-col justify-between">
+                                    <div>
+                                        {addData.photo instanceof File && (
+                                            <p className="text-sm text-green-600 mb-2">
+                                                Selected: {addData.photo.name}
+                                            </p>
+                                        )}
+
+                                    </div>
+                                </div>
+
+                                {/* Tombol Choose File di pinggir kanan */}
+                                <div className="flex-shrink-0">
+                                    <Input
+                                        id="add-photo"
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/jpg,image/gif"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                setAddData('photo', file);
+                                            }
+                                        }}
+                                        className="hidden"
+                                    />
+                                    <label
+                                        htmlFor="add-photo"
+                                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer"
+                                    >
+                                        Choose File
+                                    </label>
+                                </div>
+                            </div>
+                            <p className="text-end text-xs text-gray-500">
+                                            Max size: 2MB. Formats: JPEG, PNG, JPG, GIF
+                                        </p>
                             <InputError message={errorsAdd.photo} className="mt-2" />
                         </div>
                          <div>

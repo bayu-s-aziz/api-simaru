@@ -91,16 +91,16 @@ class RoomController extends Controller
      */
     public function update(Request $request, Room $room)
     {
-        // 1. Validasi input
+        // 1. Validasi input - photo optional saat update
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'faculty_name' => 'required|string|max:255',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Validasi file gambar baru
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'capacity' => 'required|integer|min:1',
             'status' => ['required', 'string', Rule::in(['draft', 'approved', 'rejected'])],
         ]);
 
-        // 2. Handle file upload baru (jika ada)
+        // 2. Handle file upload baru (hanya jika ada file baru)
         if ($request->hasFile('photo')) {
             // Hapus foto lama jika ada
             if ($room->photo) {
@@ -110,6 +110,9 @@ class RoomController extends Controller
             // Simpan foto baru dan update path
             $path = $request->file('photo')->store('uploads/rooms', 'public');
             $validated['photo'] = $path;
+        } else {
+            // Jika tidak ada file baru, hapus 'photo' dari validated agar tidak overwrite
+            unset($validated['photo']);
         }
 
         // 3. Update data room
