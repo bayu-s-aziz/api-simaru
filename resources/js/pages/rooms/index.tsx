@@ -38,7 +38,7 @@ import { router } from '@inertiajs/react';
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Room Management',
-        href: dashboard().url, // Asumsi route, bisa diganti ke route index rooms
+        href: dashboard().url,
     },
 ];
 
@@ -47,7 +47,8 @@ interface Room {
     id: number;
     name: string;
     faculty_name: string;
-    photo: string | null; // Sesuai migrasi, photo bisa null
+    photo: string | null;
+    photo_url?: string | null; // tambah
     capacity: number;
     status: 'draft' | 'approved' | 'rejected';
 }
@@ -57,7 +58,6 @@ interface RoomIndexProps {
     rooms: {
         current_page: number;
         data: Room[];
-        // Tambahkan properti paginasi lain jika perlu (total, per_page, etc.)
     };
 }
 
@@ -67,10 +67,8 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
 
-    // Tipe untuk status
     type RoomStatus = 'draft' | 'approved' | 'rejected';
 
-    // Form untuk Edit Room - ubah tipe photo menjadi File | string | null
     const { data: editData, setData: setEditData, patch, processing: processingEdit, errors: errorsEdit, reset: resetEdit } = useForm({
         name: '',
         faculty_name: '',
@@ -79,7 +77,6 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
         status: 'draft' as RoomStatus,
     });
 
-    // Form untuk Add Room - ubah tipe photo menjadi File | null
     const { data: addData, setData: setAddData, post, processing: processingAdd, errors: errorsAdd, reset: resetAdd } = useForm({
         name: '',
         faculty_name: '',
@@ -88,16 +85,14 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
         status: 'draft' as RoomStatus,
     });
 
-    // Hook useForm untuk delete
     const { delete: deleteRoom, processing: processingDelete } = useForm();
 
-    // Populate form edit saat editingRoom berubah
     useEffect(() => {
         if (editingRoom) {
             setEditData({
                 name: editingRoom.name,
                 faculty_name: editingRoom.faculty_name,
-                photo: editingRoom.photo || '', // Handle null photo
+                photo: editingRoom.photo || '',
                 capacity: editingRoom.capacity,
                 status: editingRoom.status,
             });
@@ -106,20 +101,17 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
         }
     }, [editingRoom]);
 
-    // Handler submit untuk form edit - gunakan router dengan manual FormData
     const handleEditSubmit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!editingRoom) return;
 
-        // Buat FormData manual
         const formData = new FormData();
         formData.append('name', editData.name);
         formData.append('faculty_name', editData.faculty_name);
         formData.append('capacity', editData.capacity.toString());
         formData.append('status', editData.status);
-        formData.append('_method', 'PUT'); // Method spoofing
+        formData.append('_method', 'PUT');
 
-        // Tambahkan photo jika ada dan merupakan File
         if (editData.photo instanceof File) {
             formData.append('photo', editData.photo);
         }
@@ -130,26 +122,23 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
         });
     };
 
-    // Handler submit untuk form tambah - gunakan FormData
     const handleAddSubmit: FormEventHandler = (e) => {
         e.preventDefault();
-
         post('/rooms', {
             onSuccess: () => {
                 setIsAddModalOpen(false);
                 resetAdd();
             },
             preserveScroll: true,
-            forceFormData: true, // Paksa menggunakan FormData
+            forceFormData: true,
         });
     };
 
-    // Handler untuk konfirmasi hapus
     const handleDeleteConfirm = () => {
         if (!deletingRoom) return;
 
         deleteRoom(`/rooms/${deletingRoom.id}`, {
-            onSuccess: () => setDeletingRoom(null), // Tutup modal setelah sukses
+            onSuccess: () => setDeletingRoom(null),
             preserveScroll: true,
         });
     };
@@ -159,7 +148,6 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
             <Head title="Room Management" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
 
-                {/* Tombol Add New */}
                 <div className="flex justify-end mb-4">
                     <Button onClick={() => setIsAddModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -167,7 +155,6 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                     </Button>
                 </div>
 
-                {/* Tabel Data Ruangan */}
                 <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
                     <Table>
                         <TableHeader>
@@ -186,9 +173,9 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                     <TableCell>
                                         {room.photo ? (
                                             <img
-                                                src={`/storage/${room.photo}`}
-                                                alt={room.name}
-                                                className="h-12 w-12 object-cover rounded"
+                                              src={room.photo_url ?? undefined}
+                                              alt={room.name}
+                                              className="h-12 w-12 object-cover rounded"
                                             />
                                         ) : (
                                             <div className="h-12 w-12 bg-gray-200 rounded flex items-center justify-center">
@@ -230,7 +217,7 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                 </div>
             </div>
 
-            {/* MODAL (DIALOG) UNTUK EDIT ROOM */}
+            {/* MODAL EDIT */}
             <Dialog open={!!editingRoom} onOpenChange={(isOpen) => !isOpen && setEditingRoom(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
@@ -263,11 +250,9 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                             <InputError message={errorsEdit.faculty_name} className="mt-2" />
                         </div>
 
-                        {/* MODAL EDIT ROOM - Update bagian Photo */}
                         <div>
                             <Label htmlFor="edit-photo" className="mb-2 block">Photo</Label>
                             <div className="flex items-start gap-3">
-                                {/* Preview foto existing atau placeholder */}
                                 <div className="flex-shrink-0">
                                     {editData.photo instanceof File ? (
                                         <img
@@ -277,7 +262,7 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                         />
                                     ) : editingRoom?.photo && typeof editData.photo === 'string' ? (
                                         <img
-                                            src={`/storage/${editingRoom.photo}`}
+                                            src={editingRoom.photo_url ?? undefined}
                                             alt="Current"
                                             className="h-20 w-20 object-cover rounded border-2 border-gray-200"
                                         />
@@ -288,19 +273,14 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                     )}
                                 </div>
 
-                                {/* Info di tengah */}
                                 <div className="flex-1 flex flex-col justify-between">
-                                    <div>
-                                        {editData.photo instanceof File && (
-                                            <p className="text-sm text-green-600 mb-2">
-                                                New file: {editData.photo.name}
-                                            </p>
-                                        )}
-
-                                    </div>
+                                    {editData.photo instanceof File && (
+                                        <p className="text-sm text-green-600 mb-2">
+                                            New file: {editData.photo.name}
+                                        </p>
+                                    )}
                                 </div>
 
-                                {/* Tombol Choose File di pinggir kanan */}
                                 <div className="flex-shrink-0">
                                     <Input
                                         id="edit-photo"
@@ -321,11 +301,10 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                         Choose File
                                     </label>
                                 </div>
-
                             </div>
                             <p className="text-end text-xs text-gray-500">
-                                            Max size: 2MB. Formats: JPEG, PNG, JPG, GIF
-                                        </p>
+                                Max size: 2MB. Formats: JPEG, PNG, JPG, GIF
+                            </p>
                             <InputError message={errorsEdit.photo} className="mt-2" />
                         </div>
 
@@ -335,7 +314,6 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                 id="edit-capacity"
                                 type="number"
                                 value={editData.capacity}
-                                // Konversi ke integer saat change
                                 onChange={(e) => setEditData('capacity', parseInt(e.target.value) || 0)}
                                 className="mt-1"
                                 required
@@ -373,8 +351,8 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                 </DialogContent>
             </Dialog>
 
-             {/* MODAL (DIALOG) UNTUK ADD ROOM */}
-             <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            {/* MODAL ADD */}
+            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Add New Room</DialogTitle>
@@ -406,11 +384,9 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                             <InputError message={errorsAdd.faculty_name} className="mt-2" />
                         </div>
 
-                        {/* MODAL ADD ROOM - Update bagian Photo */}
                         <div>
                             <Label htmlFor="add-photo" className="mb-2 block">Photo</Label>
                             <div className="flex items-start gap-3">
-                                {/* Preview foto baru atau placeholder */}
                                 <div className="flex-shrink-0">
                                     {addData.photo instanceof File ? (
                                         <img
@@ -424,20 +400,13 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Info di tengah */}
                                 <div className="flex-1 flex flex-col justify-between">
-                                    <div>
-                                        {addData.photo instanceof File && (
-                                            <p className="text-sm text-green-600 mb-2">
-                                                Selected: {addData.photo.name}
-                                            </p>
-                                        )}
-
-                                    </div>
+                                    {addData.photo instanceof File && (
+                                        <p className="text-sm text-green-600 mb-2">
+                                            Selected: {addData.photo.name}
+                                        </p>
+                                    )}
                                 </div>
-
-                                {/* Tombol Choose File di pinggir kanan */}
                                 <div className="flex-shrink-0">
                                     <Input
                                         id="add-photo"
@@ -460,8 +429,8 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                 </div>
                             </div>
                             <p className="text-end text-xs text-gray-500">
-                                            Max size: 2MB. Formats: JPEG, PNG, JPG, GIF
-                                        </p>
+                                Max size: 2MB. Formats: JPEG, PNG, JPG, GIF
+                            </p>
                             <InputError message={errorsAdd.photo} className="mt-2" />
                         </div>
                          <div>
@@ -485,7 +454,6 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                 <SelectContent>
                                     <SelectItem value="draft">Draft</SelectItem>
                                     <SelectItem value="approved">Approved</SelectItem>
-                                    {/* Ini adalah baris yang diperbaiki dari 'SelsctItem' */}
                                     <SelectItem value="rejected">Rejected</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -508,7 +476,7 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* DIALOG KONFIRMASI DELETE */}
+            {/* DIALOG DELETE */}
             <Dialog open={!!deletingRoom} onOpenChange={(isOpen) => !isOpen && setDeletingRoom(null)}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>

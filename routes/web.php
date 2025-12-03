@@ -27,7 +27,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
     Route::resource('users', UserController::class);
-    Route::resource('rooms', RoomController::class);
+    Route::resource('rooms', RoomController::class)->names('web.rooms');
 });
 
 require __DIR__.'/settings.php';

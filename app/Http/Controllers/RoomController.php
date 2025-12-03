@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Room; // <-- Gunakan model Room
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Storage; // <-- 1. Tambahkan impor Storage
+use Illuminate\Support\Facades\Storage;
 
 class RoomController extends Controller
 {
@@ -17,28 +17,17 @@ class RoomController extends Controller
     {
         $search = $request->input('search');
 
-        // Query data rooms
         $rooms = Room::query()
             ->when($search, function ($query, $search) {
-                // Cari berdasarkan nama atau nama fakultas
                 $query->where('name', 'like', "%{$search}%")
                       ->orWhere('faculty_name', 'like', "%{$search}%");
             })
             ->paginate(10)
-            ->withQueryString(); // <-- Tambahkan ini agar search query tetap ada di URL pagination
+            ->withQueryString();
 
-        // Render view Inertia
         return Inertia::render('rooms/index', [
-            'rooms' => $rooms, // Kirim prop 'rooms' ke komponen React
+            'rooms' => $rooms,
         ]);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        // Tidak digunakan, modal di frontend menangani ini
     }
 
     /**
@@ -46,52 +35,6 @@ class RoomController extends Controller
      */
     public function store(Request $request)
     {
-        // 1. Validasi input (photo sekarang adalah file gambar)
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'faculty_name' => 'required|string|max:255',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Validasi sebagai file gambar
-            'capacity' => 'required|integer|min:1',
-            'status' => ['required', 'string', Rule::in(['draft', 'approved', 'rejected'])],
-        ]);
-
-        // 2. Handle file upload jika ada
-        if ($request->hasFile('photo')) {
-            // Simpan file di 'storage/app/public/uploads/rooms'
-            // dan simpan path-nya ke database
-            $path = $request->file('photo')->store('uploads/rooms', 'public');
-            $validated['photo'] = $path;
-        }
-
-        // 3. Buat room baru di database
-        Room::create($validated);
-
-        // 4. Redirect kembali ke halaman index
-        return redirect('/rooms')->with('success', 'Room created successfully.');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Room $room)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Room $room)
-    {
-        // Tidak digunakan, modal di frontend menangani ini
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Room $room)
-    {
-        // 1. Validasi input - photo optional saat update
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'faculty_name' => 'required|string|max:255',
@@ -100,26 +43,44 @@ class RoomController extends Controller
             'status' => ['required', 'string', Rule::in(['draft', 'approved', 'rejected'])],
         ]);
 
-        // 2. Handle file upload baru (hanya jika ada file baru)
+        // Simpan path relatif ke DB (bukan URL!)
         if ($request->hasFile('photo')) {
-            // Hapus foto lama jika ada
+            $path = $request->file('photo')->store('uploads/rooms', 'public');
+            $validated['photo'] = $path; // → 'uploads/rooms/filename.jpg'
+        }
+
+        Room::create($validated);
+
+        // ✅ Gunakan `back()` untuk Inertia (bukan `redirect()`)
+        return back()->with('success', 'Room created successfully.');
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Room $room)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'faculty_name' => 'required|string|max:255',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'capacity' => 'required|integer|min:1',
+            'status' => ['required', 'string', Rule::in(['draft', 'approved', 'rejected'])],
+        ]);
+
+        if ($request->hasFile('photo')) {
+            // Hapus foto lama
             if ($room->photo) {
                 Storage::disk('public')->delete($room->photo);
             }
-
-            // Simpan foto baru dan update path
-            $path = $request->file('photo')->store('uploads/rooms', 'public');
-            $validated['photo'] = $path;
+            $validated['photo'] = $request->file('photo')->store('uploads/rooms', 'public');
         } else {
-            // Jika tidak ada file baru, hapus 'photo' dari validated agar tidak overwrite
-            unset($validated['photo']);
+            unset($validated['photo']); // Jangan hapus kolom photo jika tidak diubah
         }
 
-        // 3. Update data room
         $room->update($validated);
 
-        // 4. Redirect kembali
-        return redirect('/rooms')->with('success', 'Room updated successfully.');
+        return back()->with('success', 'Room updated successfully.');
     }
 
     /**
@@ -127,15 +88,12 @@ class RoomController extends Controller
      */
     public function destroy(Room $room)
     {
-        // Hapus file foto dari storage jika ada
         if ($room->photo) {
             Storage::disk('public')->delete($room->photo);
         }
 
-        // Hapus room dari database
         $room->delete();
 
-        // Redirect kembali ke halaman index
-        return redirect('/rooms')->with('success', 'Room deleted successfully.');
+        return back()->with('success', 'Room deleted successfully.');
     }
 }

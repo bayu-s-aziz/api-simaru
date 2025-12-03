@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Room extends Model
 {
@@ -13,4 +14,14 @@ class Room extends Model
         'capacity',
         'status',
     ];
+
+    protected $appends = ['photo_url'];
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        if (!$this->photo) {
+            return null;
+        }
+        return Storage::url($this->photo); // converts 'uploads/rooms/xxx.jpg' to '/storage/uploads/rooms/xxx.jpg'
+    }
 }
