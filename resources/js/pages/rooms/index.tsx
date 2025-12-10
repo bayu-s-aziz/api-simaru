@@ -12,7 +12,14 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Pencil, Trash2, Plus, ChevronDown, Check, X, FileText } from 'lucide-react';
 import { useState, useEffect, FormEventHandler } from 'react';
 import {
     Dialog,
@@ -86,6 +93,39 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
     });
 
     const { delete: deleteRoom, processing: processingDelete } = useForm();
+
+    // Quick status change handler
+    const handleQuickStatusChange = (room: Room, newStatus: RoomStatus) => {
+        router.patch(`/rooms/${room.id}`, {
+            name: room.name,
+            faculty_name: room.faculty_name,
+            capacity: room.capacity,
+            status: newStatus,
+        }, {
+            preserveScroll: true,
+            only: ['rooms'],
+        });
+    };
+
+    // Get status badge variant
+    const getStatusBadgeVariant = (status: RoomStatus) => {
+        switch (status) {
+            case 'approved': return 'default';
+            case 'rejected': return 'destructive';
+            case 'draft': return 'secondary';
+            default: return 'secondary';
+        }
+    };
+
+    // Get status icon
+    const getStatusIcon = (status: RoomStatus) => {
+        switch (status) {
+            case 'approved': return <Check className="h-3 w-3 mr-1" />;
+            case 'rejected': return <X className="h-3 w-3 mr-1" />;
+            case 'draft': return <FileText className="h-3 w-3 mr-1" />;
+            default: return null;
+        }
+    };
 
     useEffect(() => {
         if (editingRoom) {
@@ -186,7 +226,42 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                                     <TableCell>{room.name}</TableCell>
                                     <TableCell>{room.faculty_name}</TableCell>
                                     <TableCell>{room.capacity}</TableCell>
-                                    <TableCell>{room.status}</TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="h-8 w-[120px] justify-between gap-1 px-2">
+                                                    <Badge variant={getStatusBadgeVariant(room.status)} className="gap-1">
+                                                        {getStatusIcon(room.status)}
+                                                        <span className="capitalize">{room.status}</span>
+                                                    </Badge>
+                                                    <ChevronDown className="h-3 w-3 opacity-50" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-[120px]">
+                                                <DropdownMenuItem
+                                                    onClick={() => handleQuickStatusChange(room, 'draft')}
+                                                    disabled={room.status === 'draft'}
+                                                >
+                                                    <FileText className="h-4 w-4 mr-2" />
+                                                    Draft
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleQuickStatusChange(room, 'approved')}
+                                                    disabled={room.status === 'approved'}
+                                                >
+                                                    <Check className="h-4 w-4 mr-2" />
+                                                    Approved
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleQuickStatusChange(room, 'rejected')}
+                                                    disabled={room.status === 'rejected'}
+                                                >
+                                                    <X className="h-4 w-4 mr-2" />
+                                                    Rejected
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
                                     <TableCell>
                                         <div className="flex space-x-2">
                                             <Button
