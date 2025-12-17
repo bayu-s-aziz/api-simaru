@@ -3,16 +3,21 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
 
 class Room extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'name',
         'faculty_name',
         'photo',
         'capacity',
         'status',
+        'description',
+        'price',
     ];
 
     protected $appends = ['photo_url'];
