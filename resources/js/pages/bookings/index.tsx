@@ -41,11 +41,13 @@ const toLocalDateTime = (dateString: string) => {
   return format(dt, "yyyy-MM-dd'T'HH:mm");
 };
 
+import Pagination from '@/components/ui/pagination';
+
 export default function BookingIndex({
   bookings,
   rooms
 }: {
-  bookings: { data: any[] };
+  bookings: { current_page?: number; last_page?: number; data: any[] };
   rooms: { id: number; name: string }[]
 }) {
   const [openAdd, setOpenAdd] = useState(false);
@@ -238,6 +240,12 @@ export default function BookingIndex({
           </Table>
         </div>
       </div>
+
+      {bookings && (bookings.last_page ?? 0) > 1 && (
+        <div className="mt-4 flex justify-end p-4">
+          <Pagination currentPage={bookings.current_page ?? 1} lastPage={bookings.last_page ?? 1} />
+        </div>
+      )}
 
       {/* Modal Tambah Booking */}
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>

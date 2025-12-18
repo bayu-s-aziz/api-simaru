@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import InputError from '@/components/input-error';
+import Pagination from '@/components/ui/pagination';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -203,6 +204,12 @@ export default function UserIndex({ users }: UserIndexProps) {
                     </Table>
                 </div>
             </div>
+
+            {users && (users.last_page ?? 0) > 1 && (
+                <div className="mt-4 flex justify-end p-4">
+                    <Pagination currentPage={users.current_page} lastPage={users.last_page} />
+                </div>
+            )}
 
             {/* MODAL (DIALOG) UNTUK EDIT USER */}
             <Dialog open={!!editingUser} onOpenChange={(isOpen) => !isOpen && setEditingUser(null)}>

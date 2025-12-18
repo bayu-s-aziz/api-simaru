@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import InputError from '@/components/input-error';
 import { router } from '@inertiajs/react';
+import Pagination from '@/components/ui/pagination';
 
 // Breadcrumbs untuk Room Management
 const breadcrumbs: BreadcrumbItem[] = [
@@ -291,6 +292,12 @@ export default function RoomIndex({ rooms }: RoomIndexProps) {
                     </Table>
                 </div>
             </div>
+
+            {rooms && (rooms.last_page ?? 0) > 1 && (
+                <div className="mt-4 flex justify-end p-4">
+                    <Pagination currentPage={rooms.current_page} lastPage={rooms.last_page} />
+                </div>
+            )}
 
             {/* MODAL EDIT */}
             <Dialog open={!!editingRoom} onOpenChange={(isOpen) => !isOpen && setEditingRoom(null)}>
